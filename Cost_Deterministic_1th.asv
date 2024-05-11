@@ -1,0 +1,310 @@
+clc
+clear
+format short
+Iter=100;
+n_p=30;
+JJ=1;
+tic
+alpha=3;
+beta=11;
+zeeta=0;
+%% defining operation mode
+operation_mode=input('grid-connected=1  islanded mode=2:  ')
+%% defining phev charging mode
+charging_type=input('PHEV charging mode: No-PEV=0, uncoordinated=1,coordinated=2, smart=3:  ')
+phev_demand=PHEV(charging_type);
+%% integrity attack simulation in islanded mode
+att=input('attack=1  no-attack=0:  ')
+if att==1& operation_mode==2
+    dg_num1=input(' first DG unit you want to shutdown: no shutdowns=0  fc=1  mt1=2   mt2=5  mt3=6:  ')
+    dg_num2=input('second  DG unit you want to shutdown: no shutdowns=0  fc=1  mt1=2   mt2=5  mt3=6:  ')
+    hour=input('the hour in which DG units will shutdown:  ')
+end
+% DG Codes: PV=1;WT=2,FC=3,MT=4,Bat=5,Market=6, MT2=7, MT3=8;
+% Type	MinPower MaxPower    Bid        Start-up/Shut-down cost
+% (kW)     (kW)	  (€ct /kWh)	         (€ct)
+DG_Min_Max_Bid=[
+    1    0	        0	       2.584	     0         nan
+    2    0	        0	       1.073	     0         nan
+    3    0	        0	      0.494	        38.5      700
+    4    0	        80	      0.28	         60        650
+    5   -150	    150        0.38            0        700
+    6   -180	    180      nan	        nan       nan
+    7   35         450      0.475	        70        1500
+    8   50         700      0.475	        75        1600 ];
+PV1=0;
+WT1=90;
+WT2=75;
+WT3=0;
+PV2=0;
+Intervals=24;
+n_d=6*Intervals;
+if operation_mode==1
+    Bid_Market=[.23 .19 .14 .12 .12 .20 .2 .2 1.5 4 4 4 1.5 4 2 1.95 .6 .41 .35 .43 1.17 .54 .3 .26 ];
+else
+    Bid_Market=1000*[.23 .19 .14 .12 .12 .20 .2 .2 1.5 4 4 4 1.5 4 2 1.95 .6 .41 .35 .43 1.17 .54 .3 .26 ];
+end
+Load_demand=3*[52 50 50 51 56 58 70 75 76 80 78 74 72 72 76 80 85 88 90 87 78 71 65 56 ];
+Wind_pwr_Forecast_legitment=[0.119000000000000	0.119000000000000	0.0890000000000000	0.150000000000000	0.204000000000000	0.180000000000000	0.240000000000000	0.260000000000000	0.260000000000000	0.300000000000000	0.290000000000000	0.310000000000000	0.290000000000000	0.270000000000000	0.285000000000000	0.298000000000000	0.330000000000000	0.350000000000000	0.400000000000000	0.450000000000000	0.420000000000000	0.390000000000000	0.360000000000000	0.220000000000000]
+PV_pwr_Forecast_legitment=[0	0	0	0	0	0	0.109	0.25	0.34	0.39	0.468	0.47	0.461	0.5	0.47	0.35	0.26	0.19	0.04	0	0	0	0	0];
+[wtt,pvv]=wt_pv_fd(Intervals,alpha,beta,zeeta,Wind_pwr_Forecast_legitment,PV_pwr_Forecast_legitment);
+Wind_pwr_Forecast=wtt;
+PV_pwr_Forecast=pvv;
+Ld_Fact=[0.6	0.65	0.59	0.62	0.7	0.698	0.71	0.79	0.86	0.9 	0.98	1	0.99	1	0.97	0.958	0.935	0.86	0.88	0.91	0.927	0.887	0.78	0.7];
+
+Branch_data=[
+    1	1	2	0.0922	0.047;
+    2	2	3	0.493	0.2511;
+    3	3	4	0.366	0.1864;
+    4	4	5	0.3811	0.1941;
+    5	5	6	0.819	0.707;
+    6	6	7	0.1872	0.6188;
+    7	7	8	0.7114	0.2351;
+    8	8	9	1.03	0.74;
+    9	9	10	1.044	0.74;
+    10	10	11	0.1966	0.065;
+    11	11	12	0.3744	0.1238;
+    12	13	14	0.5416	0.7129;
+    13	12	13	1.468	1.155;
+    14	14	15	0.591	0.526;
+    15	15	16	0.7463	0.545;
+    16	16	17	1.289	1.721;
+    17	17	18	0.732	0.574;
+    18	2	19	0.164	0.1565;
+    19	19	20	1.5042	1.3554;
+    20	20	21	0.4095	0.4784;
+    21	21	22	0.7089	0.9373;
+    22	3	23	0.4512	0.3083;
+    23	23	24	0.898	0.7091;
+    24	24	25	0.896	0.7011;
+    25	6	26	0.203	0.1034;
+    26	26	27	0.2842	0.1447;
+    27	27	28	1.059	0.9337;
+    28	28	29	0.8042	0.7006;
+    29	29	30	0.5075	0.2585;
+    30	30	31	0.9744	0.963;
+    31	31	32	0.3105	0.3619;
+    32	32	33	0.341	0.5302];
+
+Bus_data=[
+    1	0	0 ;
+    2	100	60;
+    3	90	40;
+    4	120	80;
+    5	60	30;
+    6	60	20;
+    7	200	100;
+    8	200	100;
+    9	60	20;
+    10	60	20;
+    11	45	30;
+    12	60	50;
+    13	60	35;
+    14	120	80;
+    15	60	10;
+    16	60	20;
+    17	60	20;
+    18	90	40;
+    19	90	40;
+    20	90	40;
+    21	90	40;
+    22	90	40;
+    23	90	50;
+    24	420	200;
+    25	420	200;
+    26	60	25;
+    27	60	25;
+    28	60	20;
+    29	120	70;
+    30	200	600;
+    31	150	70;
+    32	210	100;
+    33	60	40];
+% DG Codes: MT=1;FC=2,PV=3,WT=4,Bat=5,Market=6
+for i=1:n_p
+    ipop_FC(i,:)=DG_Min_Max_Bid(3,2)+rand(1,Intervals)*( DG_Min_Max_Bid(3,3)-DG_Min_Max_Bid(3,2));
+    ipop_MT(i,:)=DG_Min_Max_Bid(4,2)+rand(1,Intervals)*( DG_Min_Max_Bid(4,3)-DG_Min_Max_Bid(4,2));
+    ipop_Bat(i,:)=DG_Min_Max_Bid(5,2)+rand(1,Intervals)*(DG_Min_Max_Bid(5,3)-DG_Min_Max_Bid(5,2));
+    ipop_Market(i,:)=DG_Min_Max_Bid(6,2)+rand(1,Intervals)*(DG_Min_Max_Bid(6,3)-DG_Min_Max_Bid(6,2));
+    ipop_MT2(i,:)=DG_Min_Max_Bid(7,2)+rand(1,Intervals)*(DG_Min_Max_Bid(7,3)-DG_Min_Max_Bid(7,2));
+    ipop_MT3(i,:)=DG_Min_Max_Bid(8,2)+rand(1,Intervals)*(DG_Min_Max_Bid(8,3)-DG_Min_Max_Bid(8,2));
+end
+ipop=[ipop_FC,ipop_MT,ipop_Bat,ipop_Market,ipop_MT2,ipop_MT3];
+
+for i=1:n_p
+    [ipop(i,:)]=limiting(ipop(i,:),Intervals,DG_Min_Max_Bid,Wind_pwr_Forecast,PV_pwr_Forecast,WT1,WT2,WT3,PV2,PV1,Load_demand);
+    cost_MGs(i,:)=Cost_eval(ipop(i,:),DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+end
+
+ipop;
+
+cost=cost_MGs;
+ipop_cost=[ipop,cost];
+M=ipop;
+
+AP=0.1;
+lf=2;
+
+for kk=1:Iter
+    m_D=mean(ipop_cost(:,[1:n_d]));
+    ipop_sort=sortrows(ipop_cost,n_d+1);
+    gbest=ipop_sort(1,:);
+    X_Worst=ipop_sort(end,[1:n_d]);
+    X_gbest=gbest(1,[1:n_d]);
+    cost_gbest=gbest(1,n_d+1);
+    M_new=X_gbest;
+    differ=rand*(M_new-round(1+rand)*m_D);
+    
+    for i=1:n_p
+        RN=randperm(n_p);
+        KK=0;
+        if rand>=AP
+            KK=KK+1;
+            ipop_new1=ipop(i,:)+randn(1,n_d).*lf.*(M(RN(KK))-ipop(i,:));
+        else
+            ipop_FC1=DG_Min_Max_Bid(3,2)+rand(1,Intervals)*(DG_Min_Max_Bid(3,3)-DG_Min_Max_Bid(3,2));
+            ipop_MT1=DG_Min_Max_Bid(4,2)+rand(1,Intervals)*(DG_Min_Max_Bid(4,3)-DG_Min_Max_Bid(4,2));
+            ipop_Bat1=DG_Min_Max_Bid(5,2)+rand(1,Intervals)*(DG_Min_Max_Bid(5,3)-DG_Min_Max_Bid(5,2));
+            ipop_Market1=DG_Min_Max_Bid(6,2)+rand(1,Intervals)*(DG_Min_Max_Bid(6,3)-DG_Min_Max_Bid(6,2));
+            ipop_MT21=DG_Min_Max_Bid(7,2)+rand(1,Intervals)*(DG_Min_Max_Bid(7,3)-DG_Min_Max_Bid(7,2));
+            ipop_MT31=DG_Min_Max_Bid(8,2)+rand(1,Intervals)*(DG_Min_Max_Bid(8,3)-DG_Min_Max_Bid(8,2));
+            ipop_new1=[ipop_FC1,ipop_MT1,ipop_Bat1,ipop_Market1,ipop_MT21,ipop_MT31];
+        end
+        
+        m_D=mean(ipop_cost(:,[1:n_d]));
+        differ=rand*(M_new-round(1+rand)*m_D);
+        ipop_new(i,:)=ipop(i,:)+differ;
+        [ipop_new_edit]=limiting(ipop_new(i,:),Intervals,DG_Min_Max_Bid,Wind_pwr_Forecast,PV_pwr_Forecast,WT1,WT2,WT3,PV2,PV1,Load_demand);
+        ipop_new(i,:)=ipop_new_edit;
+        [cost_MGs_new]=Cost_eval(ipop_new(i,:),DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+        cost_new(i,:)=cost_MGs_new;
+        
+        if cost_new(i,:)<cost(i,:)
+            ipop(i,:)=ipop_new(i,:);
+            cost(i,:)=cost_new(i,:);
+            ipop_cost(i,:)=[ipop(i,:),cost(i,:)];
+        end
+    end
+    
+    for i=1:n_p
+        r_p=randperm(n_p);
+        if ipop_cost(r_p(1,1),n_d+1)< ipop_cost(r_p(1,2),n_d+1)
+            ipop_new(r_p(1,1),:)=ipop(r_p(1,1),:)+2*randn*(ipop(r_p(1,1),:)-ipop(r_p(1,2),:));
+        else
+            ipop_new(r_p(1,1),:)=ipop(r_p(1,1),:)+2*randn*(ipop(r_p(1,2),:)-ipop(r_p(1,1),:));
+        end
+        
+        
+        [ipop_new_edit]=limiting(ipop_new(r_p(1,1),:),Intervals,DG_Min_Max_Bid,Wind_pwr_Forecast,PV_pwr_Forecast,WT1,WT2,WT3,PV2,PV1,Load_demand);
+        ipop_new(r_p(1,1),:)=ipop_new_edit;
+        [cost_MGs_new]=Cost_eval(ipop_new(r_p(1,1),:),DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+        cost_new(r_p(1,1),:)=cost_MGs_new;
+        
+        if cost_new(r_p(1,1),1) < cost(r_p(1,1),1)
+            ipop(r_p(1,1),:)=ipop_new(r_p(1,1),:);
+            cost(r_p(1,1),:)=cost_new(r_p(1,1),:);
+            ipop_cost(r_p(1,1),:)=[ipop(r_p(1,1),:), cost(r_p(1,1),:)];
+        end
+        
+        r_p=randperm(n_p);
+        nn1=r_p(1,1);
+        nn2=r_p(1,2);
+        nn3=r_p(1,3);
+        if nn1~=nn2~=nn3~=i
+            X_mut1=ipop(nn1,:)+(1+rand*.8)*(ipop(nn2,:)-ipop(nn3,:));
+            X_mut2=X_mut1+(.1+rand*.8)*(X_gbest-X_Worst);
+            X_mut3=X_gbest;
+            X_mut3(end-2*Intervals+1:end)=(.5+rand*.5)*X_gbest(end-2*Intervals+1:end);
+            
+            Cr1=(.1+rand*.6);
+            Cr2=(.1+rand*.6);
+            Cr3=(.1+rand*.6);
+            for j=1:n_d
+                if Cr1>rand
+                    XX(1,j)=X_gbest(1,j);
+                else
+                    XX(1,j)=ipop(i,j);
+                end
+                
+                if Cr2>rand
+                    XX(2,j)=X_mut1(1,j);
+                else
+                    XX(2,j)=ipop(i,j);
+                end
+                
+                if Cr3>rand
+                    XX(3,j)=X_mut1(1,j);
+                else
+                    XX(3,j)=X_gbest(1,j);
+                end
+                
+                if Cr3>rand
+                    XX(4,j)=X_mut2(1,j);
+                else
+                    XX(4,j)=X_mut1(1,j);
+                end
+            end
+            
+            for ii=1:4
+                [XX_new]=limiting(XX(ii,:),Intervals,DG_Min_Max_Bid,Wind_pwr_Forecast,PV_pwr_Forecast,WT1,WT2,WT3,PV2,PV1,Load_demand);
+                XX(ii,:)=XX_new;
+                [cost_MGs_XX]=Cost_eval(XX(ii,:),DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+                cost_XX(ii,:)=cost_MGs_XX;
+            end
+            XX_ipop_cost=[XX,cost_XX];
+            sort_XX=sortrows([XX_ipop_cost;ipop_cost(i,:)],n_d+1);
+            ipop_cost(i,:)=sort_XX(1,:);
+            ipop(i,[1:n_d])=ipop_cost(i,[1:n_d]);
+            cost(i,:)=ipop_cost(i,n_d+1);
+        end
+    end
+    
+    clc
+    kk
+    cost_gbest
+    X_gbest;
+    if cost_gbest<270 && JJ==1
+        ttt=toc;
+        JJ=JJ+1;
+    end
+    memories(kk,:)=cost_gbest;
+end
+T=Intervals;
+
+
+ipop_PV=PV1*PV_pwr_Forecast;
+ipop_PV2=PV2*PV_pwr_Forecast;
+
+ipop_WT=WT1*Wind_pwr_Forecast;
+ipop_WT2=WT2*Wind_pwr_Forecast;
+ipop_WT3=WT3*Wind_pwr_Forecast;
+
+all_production=[ipop_PV',ipop_WT',X_gbest(1:T)',X_gbest(1*T+1:2*T)',X_gbest(2*T+1:3*T)',X_gbest(3*T+1:4*T)',X_gbest(4*T+1:5*T)',X_gbest(5*T+1:6*T)',ipop_WT2',ipop_WT3',ipop_PV2'];
+[cost_MGs_gbest]=Cost_eval(X_gbest,DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+cost_MGs_gbest
+Production_gbest=sum(all_production');
+
+Production_DC=[ipop_PV',ipop_WT',X_gbest(1:T)',X_gbest(1*T+1:2*T)',X_gbest(2*T+1:3*T)',X_gbest(3*T+1:4*T)'];
+[sum(Production_DC')',Load_demand'];
+
+%% grid connected mode
+cost_new;
+[cost_MG_grid_connected,Ploss_grid_connected,Voltage,A,B,C,D,E,ploss_grid_connected,psub_grid_connected,hourly_cost_grid_connected]=Cost_eval_grid_connected(X_gbest,DG_Min_Max_Bid,Bid_Market,Intervals,Wind_pwr_Forecast,PV_pwr_Forecast,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,phev_demand);
+bb=X_gbest;
+cost_MG_grid_connected;
+Ploss_grid_connected;
+all_production_grid_connected=[ipop_PV',ipop_WT',X_gbest(1:T)',X_gbest(1*T+1:2*T)',X_gbest(2*T+1:3*T)',X_gbest(3*T+1:4*T)',X_gbest(4*T+1:5*T)',X_gbest(5*T+1:6*T)',ipop_WT2',ipop_WT3',ipop_PV2'];
+%% islanded mode
+if  operation_mode==2
+    bb=X_gbest;
+    [cost_island,Ploss_island,psub_island,ploss_island,hourly_cost_island,bb_island,voltage_island]=islandingmode(bb,alpha,beta,zeeta ,DG_Min_Max_Bid,Bid_Market,Intervals,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,Load_demand,all_production,Wind_pwr_Forecast_legitment,PV_pwr_Forecast_legitment,wtt,pvv,psub_grid_connected,phev_demand);
+    bb=bb_island;
+    all_production_island=[ipop_PV',ipop_WT',bb_island(1:T)',bb(1*T+1:2*T)',bb_island(2*T+1:3*T)',bb_island(3*T+1:4*T)',bb_island(4*T+1:5*T)',bb_island(5*T+1:6*T)',ipop_WT2',ipop_WT3',ipop_PV2'];
+    %% attack simulator
+    if att==1
+        power_lack_ac=zeros(1,24);
+        bb=bb_island;
+        [cost_without_load_shedding,cost_with_load_shedding,Voltage_attack,Ploss_attacked,psub_attacked,ploss_attacked,all_production_attacked,hourly_cost_attacked]=scenario_maker(bb,alpha,beta,zeeta ,DG_Min_Max_Bid,Bid_Market,Intervals,Branch_data,Bus_data,WT1,WT2,WT3,PV2,PV1,Ld_Fact,Load_demand,all_production,Wind_pwr_Forecast_legitment,PV_pwr_Forecast_legitment,wtt,pvv,power_lack_ac,dg_num1,dg_num2,hour,phev_demand);
+        all_production_attacked
+    end
+end
