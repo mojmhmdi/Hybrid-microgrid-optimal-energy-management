@@ -1,5 +1,4 @@
 # Hybrid-microgrid-optimal-energy-management
-Hybrid microgrid energy management
 
 ## This repository contains the codes for energy management part of the following paper
 https://ieeexplore.ieee.org/abstract/document/9460795/
